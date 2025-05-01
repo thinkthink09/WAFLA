@@ -1,4 +1,4 @@
-export function GET(request: Request) {
+export function POST(request: Request) {
   const data = [
     {
       title: "Akamai Coffee Shop",

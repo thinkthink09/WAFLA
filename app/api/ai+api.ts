@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { zodResponseFormat } from "openai/helpers/zod";
+import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
 const openai = new OpenAI({
@@ -7,56 +7,49 @@ const openai = new OpenAI({
 });
 
 const responseSchema = z.object({
-  title: z.string(),
-  body: z.string(),
-  summary: z.string(),
-  amount: z.number(),
+  items: z.array(
+    z.object({
+      title: z.string(),
+      describe: z.string(),
+      amount: z.number(),
+    })
+  ),
 });
 
 export async function POST(request: Request) {
   try {
+    console.log("Calling OpenAI API...");
+
     const { prompt } = await request.json();
 
     if (!prompt) {
       return new Response("No prompt provided", { status: 400 });
     }
 
-    // Setup streaming response
-    const encoder = new TextEncoder();
-    const stream = new TransformStream();
-    const writer = stream.writable.getWriter();
+    // Chat with OpenAI API
+    const response = await openai.responses.parse({
+      model: "gpt-4.1",
+      input: [
+        // {
+        //   role: "system",
+        //   content:
+        //     "You are an assistant that provides a summary of a prompt and generates a title, description, and amount for it.",
+        // },
+        {
+          role: "user",
+          content: `${prompt}`,
+        },
+      ],
+      text: {
+        format: zodTextFormat(responseSchema, "response-schema"),
+      },
+      // stream: true,
+    });
 
-    // Chat stream
-    const completion = openai.beta.chat.completions
-      .stream({
-        model: "gpt-4o-2024-11-20",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are an assistant that provides a summary of a prompt and generates a title, body, and amount for it.",
-          },
-          {
-            role: "user",
-            content: `Here is the prompt: ${prompt}`,
-          },
-        ],
-        response_format: zodResponseFormat(responseSchema, "post"),
-      })
-      .on(
-        "content.delta",
-        async ({ snapshot, parsed }) => await writer.write(encoder.encode(JSON.stringify(parsed)))
-      )
-      .on("content.done", async () => await writer.close());
+    console.log("Response from OpenAI API:", JSON.stringify(response.output_parsed));
 
     // Return the readable stream
-    return new Response(stream.readable, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
+    return Response.json(response.output_parsed);
   } catch (error) {
     console.error("Error calling OpenAI API:", error);
     throw error;
