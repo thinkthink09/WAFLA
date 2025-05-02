@@ -10,7 +10,7 @@ export default function Index() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch("/api/workouts", {
+        const response = await fetch("/api/static", {
           method: "POST",
         });
         // const response = await fetch("/api/ai", {
@@ -18,10 +18,9 @@ export default function Index() {
         //   body: JSON.stringify({ prompt: "Generate 10 different workouts for me" }),
         // });
 
-        console.log("Response from API:", response);
         const json = await response.json();
 
-        console.log("Response from OpenAI API:", json);
+        console.log("Response from API:", json);
         setData(json.items);
       } catch (error) {
         console.error(error);
